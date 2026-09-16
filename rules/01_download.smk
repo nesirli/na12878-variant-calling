@@ -4,7 +4,7 @@ rule download_samples:
         r2=f"{RAW_DIR}/{{sample}}_2.fastq.gz",
         stats=f"{RAW_DIR}/{{sample}}_data_stats.txt",
     log:
-        "log/download/{sample}.log"
+        "logs/download/{sample}.log"
     conda:
         "../envs/01_download.yaml"
     threads:
@@ -55,12 +55,33 @@ rule download_reference:
         """
         set -euo pipefail
 
-        # Download the archive and Ensembl's checksum manifests
+        mkdir -p {REF_DIR}/known_sites
+
+        # Download the reference archive and Ensembl's checksum manifest
         wget -O {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
             https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz >> {log} 2>&1
-        wget -O {REF_DIR}/CHECKSUMS_dna https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS >> {log} 2>&1
+        wget -O {REF_DIR}/CHECKSUMS_dna \
+            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS >> {log} 2>&1
 
-        # Record local BSD checksums alongside the expected Ensembl values
-        sum {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > {output.integrity}
-        grep "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" {REF_DIR}/CHECKSUMS_dna >> {output.integrity}
+        # Verify the archive against Ensembl's published md5 before using it
+        expected=$(grep "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" {REF_DIR}/CHECKSUMS_dna | awk '{{print $1}}')
+        actual=$(md5sum {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz | awk '{{print $1}}')
+        if [ "$expected" != "$actual" ]; then
+            echo "reference checksum mismatch: expected $expected, got $actual" | tee -a {log}
+            exit 1
+        fi
+        echo "verified md5 $actual against Ensembl CHECKSUMS" > {output.integrity}
+
+        # Decompress to the FASTA consumed downstream
+        gunzip -f {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
+        # Download known variant sites (for BQSR)
+        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf \
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf >> {log} 2>&1
+        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx \
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx >> {log} 2>&1
+        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz \
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz >> {log} 2>&1
+        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi \
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi >> {log} 2>&1
         """

@@ -7,3 +7,4 @@ dependencies:
   - sra-tools=3.4.1
   - wget=1.25.0
   - seqkit=2.13.0
+  - coreutils=9.4
