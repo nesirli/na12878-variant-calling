@@ -2,11 +2,11 @@ rule download_samples:
     output:
         r1=f"{RAW_DIR}/{{sample}}_1.fastq.gz",
         r2=f"{RAW_DIR}/{{sample}}_2.fastq.gz",
-        stats=f"{RAW_DIR}/data_stats.txt",
+        stats=f"{RAW_DIR}/{{sample}}_data_stats.txt",
     log:
         "log/download/{sample}.log"
     conda:
-        "../env/01_download.yaml"
+        "../envs/01_download.yaml"
     threads:
         config["params"]["download-threads"]
     resources:
