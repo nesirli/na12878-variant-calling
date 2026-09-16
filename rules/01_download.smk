@@ -42,7 +42,6 @@ rule download_samples:
 rule download_reference:
     output:
         genome=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
-        
         integrity=f"{REF_DIR}/reference_integrity.txt"
     log:
         "logs/download/reference.log"
@@ -54,4 +53,14 @@ rule download_reference:
         mem_mb=2000
     shell:
         """
+        set -euo pipefail
+
+        # Download the archive and Ensembl's checksum manifests
+        wget -O {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
+            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz >> {log} 2>&1
+        wget -O {REF_DIR}/CHECKSUMS_dna https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS >> {log} 2>&1
+
+        # Record local BSD checksums alongside the expected Ensembl values
+        sum {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > {output.integrity}
+        grep "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" {REF_DIR}/CHECKSUMS_dna >> {output.integrity}
         """

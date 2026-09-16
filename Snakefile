@@ -11,7 +11,9 @@ SAMPLES = ['ERR250949']
 rule all:
     input:
         expand(f"{RAW_DIR}/{{sample}}_1.fastq.gz", sample=SAMPLES),
-        expand(f"{RAW_DIR}/{{sample}}_data_stats.txt", sample=SAMPLES)
+        expand(f"{RAW_DIR}/{{sample}}_data_stats.txt", sample=SAMPLES),
+        f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
+        f"{REF_DIR}/reference_integrity.txt"
 
 include: "rules/01_download.smk"
 # "rules/02_qc.smk"
