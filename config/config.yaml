@@ -3,7 +3,10 @@ directories:
   raw: "data/raw"
   reference: "data/reference"
   qc: "results/qc"
+  align: "results/align"
 
 # Paramaters
 params:
   download-threads: 4
+  qc-threads: 4
+  align-threads: 8
