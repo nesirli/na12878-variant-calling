@@ -13,6 +13,8 @@ rule download_samples:
         mem_mb=2000
     shell:
         """
+        exec 2> {log}
+        set -x
         set -euo pipefail
 
         # Prefetch the SRA object first
@@ -53,35 +55,37 @@ rule download_reference:
         mem_mb=2000
     shell:
         """
+        exec 2> {log}
+        set -x
         set -euo pipefail
 
         mkdir -p {REF_DIR}/known_sites
 
         # Download the reference archive and Ensembl's checksum manifest
-        wget -O {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
-            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz >> {log} 2>&1
+        wget -c -O {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
+            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
         wget -O {REF_DIR}/CHECKSUMS_dna \
-            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS >> {log} 2>&1
+            https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/CHECKSUMS
 
-        # Verify the archive against Ensembl's published md5 before using it
-        expected=$(grep "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" {REF_DIR}/CHECKSUMS_dna | awk '{{print $1}}')
-        actual=$(md5sum {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz | awk '{{print $1}}')
+        # Verify the archive against Ensembl's published sum (checksum + block count) before using it
+        expected=$(awk '$3 == "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" {{print $1, $2}}' {REF_DIR}/CHECKSUMS_dna)
+        actual=$(sum {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz | awk '{{print $1, $2}}')
         if [ "$expected" != "$actual" ]; then
             echo "reference checksum mismatch: expected $expected, got $actual" | tee -a {log}
             exit 1
         fi
-        echo "verified md5 $actual against Ensembl CHECKSUMS" > {output.integrity}
+        echo "verified sum $actual against Ensembl CHECKSUMS" > {output.integrity}
 
         # Decompress to the FASTA consumed downstream
         gunzip -f {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
         # Download known variant sites (for BQSR)
         wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf \
-            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf >> {log} 2>&1
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
         wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx \
-            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx >> {log} 2>&1
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
         wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz \
-            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz >> {log} 2>&1
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz
         wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi \
-            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi >> {log} 2>&1
+            https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi
         """
