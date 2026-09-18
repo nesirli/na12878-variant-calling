@@ -1,0 +1,8 @@
+name: validate_env
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bcftools=1.24
+  - coreutils=9.4
+  - gawk=5.4.1
