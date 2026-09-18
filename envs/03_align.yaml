@@ -2,7 +2,6 @@ name: align_env
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - bwa=0.7.19
   - samtools=1.24
