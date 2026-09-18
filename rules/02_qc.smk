@@ -9,6 +9,8 @@ rule raw_fastqc:
         "logs/qc/raw/{sample}.log"
     conda:
         "../envs/02_qc.yaml"
+    container:
+        "docker://quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0"
     threads:
         config["params"]["qc-threads"]
     resources:
@@ -33,8 +35,10 @@ rule raw_multi_qc:
         "logs/qc/raw/multiqc.log"
     conda:
         "../envs/02_qc.yaml"
+    container:
+        "docker://quay.io/biocontainers/multiqc:1.35--pyhdfd78af_1"
     threads:
-        config["params"]["qc-threads"]
+        1
     resources:
         mem_mb=2000
     shell:

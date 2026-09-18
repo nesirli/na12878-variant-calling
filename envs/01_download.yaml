@@ -7,3 +7,5 @@ dependencies:
   - wget=1.25.0
   - seqkit=2.13.0
   - coreutils=9.4
+  - gzip=1.14
+  - gawk=5.4.1

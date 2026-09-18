@@ -2,11 +2,12 @@ rule download_samples:
     output:
         r1=f"{RAW_DIR}/{{sample}}_1.fastq.gz",
         r2=f"{RAW_DIR}/{{sample}}_2.fastq.gz",
-        stats=f"{RAW_DIR}/{{sample}}_data_stats.txt",
     log:
         "logs/download/{sample}.log"
     conda:
         "../envs/01_download.yaml"
+    container:
+        "docker://quay.io/biocontainers/sra-tools:3.4.1--2_linux_64"
     threads:
         config["params"]["download-threads"]
     resources:
@@ -35,9 +36,30 @@ rule download_samples:
         if [ -f {RAW_DIR}/{wildcards.sample}.fastq ]; then
             gzip {RAW_DIR}/{wildcards.sample}.fastq >> {log} 2>&1
         fi
+        """
 
-        # Per-sample stats, one header, no shared-file race condition
-        seqkit stats {output.r1} {output.r2} > {output.stats}
+
+rule sample_stats:
+    input:
+        r1=f"{RAW_DIR}/{{sample}}_1.fastq.gz",
+        r2=f"{RAW_DIR}/{{sample}}_2.fastq.gz",
+    output:
+        f"{RAW_DIR}/{{sample}}_data_stats.txt",
+    log:
+        "logs/download/{sample}_stats.log"
+    conda:
+        "../envs/01_download.yaml"
+    container:
+        "docker://quay.io/biocontainers/seqkit:2.13.0--he881be0_0"
+    resources:
+        mem_mb=2000
+    shell:
+        """
+        exec 2> {log}
+        set -x
+        set -euo pipefail
+
+        seqkit stats {input.r1} {input.r2} > {output}
         """
     
 
@@ -49,6 +71,8 @@ rule download_reference:
         "logs/download/reference.log"
     conda:
         "../envs/01_download.yaml"
+    container:
+        "docker://quay.io/biocontainers/wget:1.25.0"
     threads:
         config["params"]["download-threads"]
     resources:
