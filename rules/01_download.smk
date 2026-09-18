@@ -66,7 +66,11 @@ rule sample_stats:
 rule download_reference:
     output:
         genome=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
-        integrity=f"{REF_DIR}/reference_integrity.txt"
+        integrity=f"{REF_DIR}/reference_integrity.txt",
+        dbsnp=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf",
+        dbsnp_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
+        indels=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz",
+        indels_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
     log:
         "logs/download/reference.log"
     conda:
@@ -103,13 +107,13 @@ rule download_reference:
         # Decompress to the FASTA consumed downstream
         gunzip -f {REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
-        # Download known variant sites (for BQSR)
-        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf \
+        # Download known variant sites (for BQSR); -c resumes partial downloads
+        wget -c -O {output.dbsnp} \
             https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
-        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx \
+        wget -c -O {output.dbsnp_idx} \
             https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
-        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz \
+        wget -c -O {output.indels} \
             https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz
-        wget -O {REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi \
+        wget -c -O {output.indels_idx} \
             https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi
         """
