@@ -1,9 +1,16 @@
+# Sample
+sample:
+  id: 'ERR250949'
+
 # Directories
 directories:
   raw: "data/raw"
   reference: "data/reference"
   qc: "results/qc"
   align: "results/align"
+  analysis: "results/analysis"
+  annotation: "results/annotation"
+  validation: "results/validation"
 
 # Parameters
 params:
@@ -12,3 +19,15 @@ params:
   bwa-threads: 8         # bwa mem scales ~linearly to ~12 on this CPU
   sort-threads: 4        # bwa + sort run concurrently = 12 total
   sort-mem-mb: 1024      # per sort thread, keeps sort within mem_mb
+  variant-interval: "20" # HaplotypeCaller -L interval; empty string = whole genome
+
+# Annotation database
+snpeff:
+  database: "GRCh38.105"
+  data-dir: "results/annotation/snpeff_data"
+
+# GIAB validation truth set (NA12878 / HG001, GRCh38)
+truth:
+  dir: "data/reference/truth"
+  filename: "HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
+  url: "https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh38"
