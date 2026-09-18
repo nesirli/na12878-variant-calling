@@ -18,20 +18,28 @@ Each rule declares both a `conda:` environment and a BioContainers `container:` 
 Run the workflow with conda-managed environments on all available cores:
 
 ```bash
-snakemake --cores 12 --sdm conda \
+snakemake \
+  --cores 12 \
+  --sdm conda \
   --resources mem_mb=45000 \
   --scheduler ilp \
-  --rerun-incomplete --keep-going --retries 3 \
+  --rerun-incomplete \
+  --keep-going \
+  --retries 3 \
   --latency-wait 60
 ```
 
 Run the workflow with Apptainer (no conda environments required):
 
 ```bash
-snakemake --cores 12 --sdm apptainer \
+snakemake \
+  --cores 12 \
+  --sdm apptainer \
   --resources mem_mb=45000 \
   --scheduler ilp \
-  --rerun-incomplete --keep-going --retries 3 \
+  --rerun-incomplete \
+  --keep-going \
+  --retries 3 \
   --latency-wait 60
 ```
 
