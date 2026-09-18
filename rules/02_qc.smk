@@ -27,8 +27,8 @@ rule raw_fastqc:
 
 rule raw_multi_qc:
     input:
-        expand(f"{QC_DIR}/raw/{{sample}}_1_fastqc.html", sample=SAMPLES),
-        expand(f"{QC_DIR}/raw/{{sample}}_2_fastqc.html", sample=SAMPLES),
+        f"{QC_DIR}/raw/{sample}_1_fastqc.html",
+        f"{QC_DIR}/raw/{sample}_2_fastqc.html",
     output:
         f"{QC_DIR}/raw/multiqc_report.html"
     log:
