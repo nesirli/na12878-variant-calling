@@ -19,9 +19,9 @@ rule all:
         f"{ALIGN_DIR}/{sample}.sorted.bam.bai",
         f"{ALIGN_DIR}/{sample}_samtools_stats.txt",
         f"{RAW_DIR}/{sample}_data_stats.txt",
-        #f"{ANALYSIS_DIR}/{sample}.final.vcf.gz",
-        #f"{ANNOTATION_DIR}/{sample}.annotated.vcf",
-        #f"{VALIDATION_DIR}/{sample}.validation.txt"
+        f"{ANALYSIS_DIR}/{sample}.final.vcf.gz",
+        f"{ANNOTATION_DIR}/{sample}.annotated.vcf",
+        f"{VALIDATION_DIR}/{sample}.validation.txt"
 
 include: "rules/01_download.smk"
 include: "rules/02_qc.smk"

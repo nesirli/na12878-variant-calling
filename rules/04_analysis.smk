@@ -46,7 +46,7 @@ rule mark_duplicates:
     output:
         metrics=f"{ANALYSIS_DIR}/{{sample}}.dedup_metrics.txt",
         dedup_bam=f"{ANALYSIS_DIR}/{{sample}}.dedup.bam",
-        dedup_bai=f"{ANALYSIS_DIR}/{{sample}}.dedup.bam.bai",
+        dedup_bai=f"{ANALYSIS_DIR}/{{sample}}.dedup.bai",
     log:
         "logs/analysis/{sample}.mark_duplicates.log"
     conda:
@@ -68,16 +68,52 @@ rule mark_duplicates:
         """
 
 
+rule prepare_known_sites:
+    input:
+        dbsnp=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf",
+        indels=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz",
+    output:
+        dbsnp=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.ensembl.vcf.gz",
+        dbsnp_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.ensembl.vcf.gz.tbi",
+        indels=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.ensembl.vcf.gz",
+        indels_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.ensembl.vcf.gz.tbi",
+    log:
+        "logs/analysis/prepare_known_sites.log"
+    conda:
+        "../envs/04_analysis.yaml"
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.24--h118bc1c_2"
+    shell:
+        """
+        exec 2> {log}
+        set -x
+        set -euo pipefail
+
+        # The Broad known-sites VCFs use UCSC-style contig names (chr20); the
+        # Ensembl reference uses 20. Rename so GATK sees overlapping contigs.
+        map={REF_DIR}/known_sites/chr_rename.txt
+        for i in {{1..22}}; do
+            printf 'chr%s\t%s\n' "$i" "$i"
+        done > "$map"
+        printf 'chrX\tX\nchrY\tY\nchrM\tMT\n' >> "$map"
+
+        bcftools annotate --threads 8 --rename-chrs "$map" {input.dbsnp} -Oz -o {output.dbsnp}
+        bcftools index -t {output.dbsnp}
+        bcftools annotate --threads 8 --rename-chrs "$map" {input.indels} -Oz -o {output.indels}
+        bcftools index -t {output.indels}
+        """
+
+
 rule build_recalibration_model:
     input:
         dedup_bam=f"{ANALYSIS_DIR}/{{sample}}.dedup.bam",
         ref=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
         dict=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.dict",
         fai=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai",
-        dbsnp=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf",
-        dbsnp_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
-        indels=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz",
-        indels_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi",
+        dbsnp=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.ensembl.vcf.gz",
+        dbsnp_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.dbsnp138.ensembl.vcf.gz.tbi",
+        indels=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.ensembl.vcf.gz",
+        indels_idx=f"{REF_DIR}/known_sites/Homo_sapiens_assembly38.known_indels.ensembl.vcf.gz.tbi",
     output:
         recal_table=f"{ANALYSIS_DIR}/{{sample}}.recal.table",
     log:
@@ -108,7 +144,7 @@ rule apply_recalibration:
         ref=f"{REF_DIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
     output:
         recal_bam=f"{ANALYSIS_DIR}/{{sample}}.recal.bam",
-        recal_bai=f"{ANALYSIS_DIR}/{{sample}}.recal.bam.bai",
+        recal_bai=f"{ANALYSIS_DIR}/{{sample}}.recal.bai",
     log:
         "logs/analysis/{sample}.apply_recalibration.log"
     conda:
@@ -126,7 +162,7 @@ rule apply_recalibration:
             -R {input.ref} \
             --bqsr-recal-file {input.recal_table} \
             -O {output.recal_bam} \
-            --CREATE_INDEX true
+            --create-output-bam-index true
         """
 
 
@@ -254,15 +290,19 @@ rule combine_variants:
             {input.filtered_indels} \
             -o {ANALYSIS_DIR}/{wildcards.sample}.pass_indels.vcf.gz
 
-        # Merge SNPs and indels (overlapping positions are allowed)
-        bcftools concat -a \
+        # Index the per-type VCFs; `concat -a` requires indexed inputs
+        bcftools index -t {ANALYSIS_DIR}/{wildcards.sample}.pass_snps.vcf.gz
+        bcftools index -t {ANALYSIS_DIR}/{wildcards.sample}.pass_indels.vcf.gz
+
+        # Merge SNPs and indels (overlapping positions are allowed; output is sorted)
+        bcftools concat -a -Oz \
+            -o {output.final_vcf} \
             {ANALYSIS_DIR}/{wildcards.sample}.pass_snps.vcf.gz \
-            {ANALYSIS_DIR}/{wildcards.sample}.pass_indels.vcf.gz \
-            | bcftools sort -Oz -o {output.final_vcf}
+            {ANALYSIS_DIR}/{wildcards.sample}.pass_indels.vcf.gz
         bcftools index -t {output.final_vcf}
 
         # Summary
         bcftools view -v snps {output.final_vcf} | grep -vc '^#' > {output.snp_count} || true
         bcftools view -v indels {output.final_vcf} | grep -vc '^#' > {output.indel_count} || true
-        bcftools stats {output.final_vcf} | grep 'Ts/Tv' | head -1 > {output.ts_tv}
+        bcftools stats {output.final_vcf} | grep '^TSTV' > {output.ts_tv} || true
         """

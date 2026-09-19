@@ -19,7 +19,7 @@ rule download_samples:
         set -euo pipefail
 
         # Prefetch the SRA object first
-        prefetch {wildcards.sample} --output-directory {RAW_DIR}/sra_cache > {log} 2>&1
+        prefetch {wildcards.sample} --output-directory {RAW_DIR}/sra_cache --max-size 100G > {log} 2>&1
 
         # Validate checksums against NCBI's stored values before conversion
         vdb-validate {RAW_DIR}/sra_cache/{wildcards.sample}/{wildcards.sample}.sra >> {log} 2>&1
