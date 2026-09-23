@@ -1,6 +1,13 @@
 # Sample
 sample:
   id: 'ERR194147'
+  # ENA mirrors the same run as pre-gzipped FASTQ, so reads can be fetched
+  # directly instead of downloading the SRA and expanding it (~400 GB).
+  ena-url: "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR194/ERR194147"
+  ena-md5:
+    r1: "63634f9d0736e09debdfe5827a5e82a0"
+    r2: "81c3ba5eb6da709324cd124a847b4528"
+    orphan: "b708805624448ab8f1404a56169c0024"
 
 # Directories
 directories:
@@ -16,9 +23,9 @@ directories:
 params:
   download-threads: 4
   qc-threads: 4          # fastqc only; multiqc is single-threaded
-  bwa-threads: 8         # bwa mem scales ~linearly to ~12 on this CPU
-  sort-threads: 4        # bwa + sort run concurrently = 12 total
-  sort-mem-mb: 1024      # per sort thread, keeps sort within mem_mb
+  bwa-threads: 4         # bwa mem threads; bwa + sort run together as one pipe group
+  sort-threads: 4        # bwa + sort run concurrently = 8 total; raised after QC stage finished
+  sort-mem-mb: 512       # per sort thread; lowered from 1024 to cut peak RAM (2 threads x 512M)
   variant-interval: "20" # HaplotypeCaller -L interval; empty string = whole genome
 
 # Annotation database

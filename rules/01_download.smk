@@ -1,15 +1,28 @@
+# ENA occasionally drops long transfers and briefly answers with 403/5xx.
+# Retry aggressively and always resume (-c) so multi-GB downloads survive.
+WGET = (
+    "wget -c --tries=100 --waitretry=60 --timeout=120 --read-timeout=120 "
+    "--retry-connrefused --retry-on-host-error --no-http-keep-alive "
+    "--retry-on-http-error=403,408,429,500,502,503,504"
+)
+
+
 rule download_samples:
     output:
         r1=f"{RAW_DIR}/{{sample}}_1.fastq.gz",
         r2=f"{RAW_DIR}/{{sample}}_2.fastq.gz",
+        orphan=f"{RAW_DIR}/{{sample}}.fastq.gz",
     log:
         "logs/download/{sample}.log"
+    params:
+        url=config["sample"]["ena-url"],
+        md5_r1=config["sample"]["ena-md5"]["r1"],
+        md5_r2=config["sample"]["ena-md5"]["r2"],
+        md5_orphan=config["sample"]["ena-md5"]["orphan"],
     conda:
         "../envs/01_download.yaml"
     container:
-        "docker://quay.io/biocontainers/sra-tools:3.4.1--2_linux_64"
-    threads:
-        config["params"]["download-threads"]
+        "docker://quay.io/biocontainers/wget:1.25.0"
     resources:
         mem_mb=2000
     shell:
@@ -18,24 +31,17 @@ rule download_samples:
         set -x
         set -euo pipefail
 
-        # Prefetch the SRA object first
-        prefetch {wildcards.sample} --output-directory {RAW_DIR}/sra_cache --max-size 100G > {log} 2>&1
+        mkdir -p {RAW_DIR}
 
-        # Validate checksums against NCBI's stored values before conversion
-        vdb-validate {RAW_DIR}/sra_cache/{wildcards.sample}/{wildcards.sample}.sra >> {log} 2>&1
+        # The ENA mirror serves this run as gzipped FASTQ
+        {WGET} -O {output.r1} {params.url}/{wildcards.sample}_1.fastq.gz
+        {WGET} -O {output.r2} {params.url}/{wildcards.sample}_2.fastq.gz
+        {WGET} -O {output.orphan} {params.url}/{wildcards.sample}.fastq.gz
 
-        # Convert to FASTQ, --split-3 keeps _1/_2 counts consistent
-        fasterq-dump {RAW_DIR}/sra_cache/{wildcards.sample}/{wildcards.sample}.sra \
-            --split-3 --threads {threads} --outdir {RAW_DIR} >> {log} 2>&1
-
-        # Compress paired reads
-        gzip {RAW_DIR}/{wildcards.sample}_1.fastq >> {log} 2>&1
-        gzip {RAW_DIR}/{wildcards.sample}_2.fastq >> {log} 2>&1
-
-        # Handle orphan/unpaired reads if --split-3 produced any
-        if [ -f {RAW_DIR}/{wildcards.sample}.fastq ]; then
-            gzip {RAW_DIR}/{wildcards.sample}.fastq >> {log} 2>&1
-        fi
+        # Verify the downloads against ENA's published checksums
+        echo "{params.md5_r1}  {output.r1}" | md5sum -c -
+        echo "{params.md5_r2}  {output.r2}" | md5sum -c -
+        echo "{params.md5_orphan}  {output.orphan}" | md5sum -c -
         """
 
 
