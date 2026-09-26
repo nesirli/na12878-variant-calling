@@ -35,4 +35,60 @@ tracking instead of reimplementing wrapper scripts. We install them with
 `nf-core modules install <tool/subcommand>` and call them from a normal Nextflow
 workflow, passing extra CLI flags through `ext.args` in a config file.
 
+## 3. Read QC
+
+The first real stage is the simplest: FastQC per sample, then MultiQC. It teaches the
+three moving parts of every stage: install a module, call it from a subworkflow, and
+feed its reports to MultiQC.
+
+Install the module (from the pipeline root):
+
+```bash
+nf-core modules install fastqc
+```
+
+`FASTQC` takes `[ meta, [ fastq_1, fastq_2 ] ]` — the sample metadata map plus the list
+of FASTQ paths, which is exactly what `PIPELINE_INITIALISATION` produces from the
+samplesheet. It emits `html`, `zip`, and (via the version topic) `versions_fastqc`.
+
+`subworkflows/local/qc.nf` wraps it:
+
+```groovy
+include { FASTQC } from '../../modules/nf-core/fastqc/main'
+
+workflow QC {
+    take:
+    ch_samplesheet
+
+    main:
+    def ch_multiqc_files = channel.empty()
+    FASTQC(ch_samplesheet)
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.map { _meta, zip -> zip })
+
+    emit:
+    multiqc_files = ch_multiqc_files
+}
+```
+
+Two nf-core conventions worth noting:
+
+- **Versions are collected through a channel topic**, not by wiring `versions` outputs
+  by hand. Modules publish `emit: ..., topic: versions`, and the top-level workflow
+  reads `channel.topic("versions")`. That is why the subworkflow above emits only the
+  MultiQC inputs.
+- **`meta` propagates everywhere.** Every module output is `[ meta, files... ]` so
+  sample identity survives the whole DAG without global variables.
+
+`MULTIQC` stays in the top-level workflow so it can aggregate reports from *all* stages
+(FastQC now, alignment/variant metrics later).
+
+Test it without running any tools using a stub run:
+
+```bash
+nextflow run . -stub-run --input assets/samplesheet.csv --outdir results
+```
+
+Commit: `feat(qc): add FastQC subworkflow`.
+
 <!-- sections below are filled in as stages land -->
+

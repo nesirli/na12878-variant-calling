@@ -3,8 +3,8 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { QC                     } from '../subworkflows/local/qc'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -30,10 +30,10 @@ workflow NA12878_VARIANT_CALLING {
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
     //
-    // MODULE: Run FastQC
+    // SUBWORKFLOW: Read QC (FastQC)
     //
-    FASTQC(ch_samplesheet)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.map{ _meta, file -> file })
+    QC(ch_samplesheet)
+    ch_multiqc_files = ch_multiqc_files.mix(QC.out.multiqc_files)
 
     //
     // Collate and save software versions
