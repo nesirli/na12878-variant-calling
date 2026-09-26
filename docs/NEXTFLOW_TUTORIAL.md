@@ -4,7 +4,8 @@ This document teaches how the `na12878-variant-calling` analysis was ported from
 Snakemake to Nextflow using nf-core modules, and how to run it on a Slurm cluster
 launched from Seqera Cloud.
 
-> Work in progress: each section is added as the corresponding stage is implemented.
+Each section maps to one commit on the `feat/nf-core-nextflow` branch. The Snakemake
+implementation on `main` is unchanged and remains the reference.
 
 ## Contents
 
@@ -34,6 +35,49 @@ Reusing them means we inherit tested command lines, container images, and versio
 tracking instead of reimplementing wrapper scripts. We install them with
 `nf-core modules install <tool/subcommand>` and call them from a normal Nextflow
 workflow, passing extra CLI flags through `ext.args` in a config file.
+
+## 2. Pipeline skeleton
+
+The pipeline starts from the official nf-core template
+(`nf-core pipelines create --name na12878-variant-calling ...`) so we inherit the
+boilerplate every nf-core pipeline shares:
+
+```
+main.nf                                   # entry point: INITIALISATION -> WORKFLOW -> COMPLETION
+workflows/na12878_variant_calling.nf      # top-level orchestration
+subworkflows/local/*.nf                   # one per analysis stage
+modules/nf-core/<tool>/main.nf            # installed modules
+modules/local/<tool>/main.nf              # project-specific processes
+conf/{base,modules}.config                # resources and per-module args
+assets/{samplesheet.csv,schema_input.json,chr_rename.txt}
+nextflow_schema.json                      # parameter schema (drives --help and validation)
+```
+
+The top-level workflow only wires stages together:
+
+```groovy
+QC(ch_analysis_reads)
+ALIGN(ch_analysis_reads, PREPARE_REFERENCE.out.fasta, PREPARE_REFERENCE.out.bwa_index)
+VARIANT_CALLING(ALIGN.out.bam, ...)
+FILTER_VARIANTS(VARIANT_CALLING.out.vcf, ...)
+ANNOTATION(FILTER_VARIANTS.out.vcf)
+VALIDATION(FILTER_VARIANTS.out.vcf, FILTER_VARIANTS.out.vcf_idx)
+```
+
+Two rules of thumb we follow throughout:
+
+1. **One subworkflow per stage, one module per tool.** Stages never call each other
+   directly; the top-level workflow is the only place that knows the order.
+2. **Channels are typed by convention.** Everything is `[ meta, files... ]`; a second
+   reference is `[ meta2, ... ]`. `meta.id` is the sample id, other keys (e.g.
+   `single_end`, `strandedness`) ride along.
+
+Validate the wiring at any time by parsing the config and by stub-running:
+
+```bash
+nextflow config .                    # does the config parse?
+nextflow run . -stub-run -c conf/local_test.config --input assets/samplesheet.csv
+```
 
 ## 3. Read QC
 
@@ -282,7 +326,93 @@ Details that matter:
 
 Commit: `feat(config): apptainer/slurm/seqera profiles and optional downsampling`.
 
-<!-- sections below are filled in as stages land -->
+## 10. Running on Slurm
+
+Copy the branch to the login node (or let Seqera do it) and run:
+
+```bash
+nextflow run . -profile slurm,apptainer \
+    --input assets/samplesheet.csv \
+    --outdir /home/nasir/work/results \
+    -work-dir /home/nasir/work/nf-work \
+    -resume
+```
+
+Useful while it runs:
+
+```bash
+squeue -u "$USER" -o "%.8i %.30j %.10T %R"   # watch jobs
+tail -f .nextflow.log                         # watch the driver
+nextflow log                                  # list past runs
+```
+
+What we verified on the cluster:
+
+- Nextflow submits each process to the `compute` partition; jobs actually ran and
+  completed (`squeue` showed `nf-NESIRLI_...` tasks and the driver logged completions).
+- The `apptainer` profile pulled a container from `community-cr-prod.seqera.io` into
+  `/home/nasir/work/nf-work/singularity` and executed it on the node.
+- The pipeline shares the single node with whatever else is queued; a 12 CPU / 32 GB
+  `process_high` task can be `PENDING (Resources)` while other jobs hold the node. That is
+  normal on one node — either wait or downsize via `conf/base.config`.
+
+## 11. Launching from Seqera Cloud
+
+Prerequisites (already in place on `178.18.254.217`): SSH key auth as `nasir`, outbound
+HTTPS to Seqera Cloud, Apptainer installed, Nextflow >= 22.10 on the non-login PATH, and
+the `feat/nf-core-nextflow` branch pushed to GitHub.
+
+Web UI steps:
+
+1. **Launchpad -> Add pipeline**
+   - Repository: `https://github.com/nesirli/na12878-variant-calling`
+   - Revision: `feat/nf-core-nextflow`
+   - Config profiles: `seqera` (equivalently `slurm,apptainer`)
+   - Work directory: `/home/nasir/work`
+   - Pipeline parameters (YAML):
+     ```yaml
+     input: /home/nasir/work/samplesheet.csv
+     outdir: /home/nasir/work/results
+     variant_interval: "20"
+     download_reads: true
+     snpeff_db: GRCh38.105
+     # downsample_reads: "4000000"   # optional fast first run
+     ```
+2. **Compute environment**: the existing HPC/Slurm environment for `178.18.254.217`
+   (user `nasir`, queue `compute`, work dir `/home/nasir/work`, container engine
+   Apptainer).
+3. Put the samplesheet on the cluster once so the run can find it:
+   ```bash
+   scp assets/samplesheet.csv seqera:/home/nasir/work/samplesheet.csv
+   ```
+4. Launch. In the **Runs** view you get the same DAG, per-task logs, and resource usage
+   that you saw locally. Outputs land in `/home/nasir/work/results`.
+
+Notes:
+
+- If the cluster already has long-running jobs (for example an `nf-core/sarek` run
+  launched from Seqera), expect queuing. Seqera shows `PENDING`/`RUNNING` per task.
+- Seqera Cloud sets `-with-tower` automatically; no token is needed for the web UI.
+- `-resume` works from the UI too (the work directory is persisted), so a failed run can
+  continue instead of restarting.
+
+## Put it together
+
+```bash
+# 1. fast smoke test of the whole DAG (no tools executed)
+nextflow run . -stub-run -c conf/local_test.config --input assets/samplesheet.csv --outdir results
+
+# 2. real run on the cluster, chr20, optional downsample for speed
+nextflow run . -profile slurm,apptainer -resume \
+    --input assets/samplesheet.csv \
+    --downsample_reads 4000000 \
+    --outdir /home/nasir/work/results \
+    -work-dir /home/nasir/work/nf-work
+```
+
+The result of a real run is `NA12878.final.vcf.gz` (filtered, merged calls),
+`NA12878.ann.vcf` (SnpEff), high-impact/missense subsets, a MultiQC report, and
+`NA12878.validation.txt` with sensitivity/precision against GIAB.
 
 
 
