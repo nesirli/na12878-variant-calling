@@ -199,7 +199,33 @@ Notes:
 
 Commit: `feat(filter): add GATK SelectVariants/VariantFiltration + bcftools merge`.
 
+## 7. Annotation
+
+`subworkflows/local/annotation.nf`:
+
+```groovy
+SNPEFF_DOWNLOAD(ch_snpeff_db)                 // [ [id:'snpeff'], params.snpeff_db ]
+SNPEFF_SNPEFF(ch_vcf, params.snpeff_db, SNPEFF_DOWNLOAD.out.cache)
+ANN_FILTER(SNPEFF_SNPEFF.out.vcf, script)     // local module
+```
+
+- **Database as a first-class input.** The SnpEff database name (`GRCh38.105`) is a
+  param. `snpeff/download` emits a cache directory which is passed as `meta2` to
+  `snpeff/snpeff`; Nextflow stages it into the task working directory and the module
+  points `-dataDir` at it.
+- **Why a local module here.** The bioconda SnpEff package does not ship SnpSift, so
+  selecting high-impact/missense variants is done with `scripts/filter_ann.awk`. Wrapping
+  it as `modules/local/ann_filter` keeps the same container/version/reporting contract as
+  an nf-core module.
+- **MultiQC via a channel topic.** SnpEff publishes its `.csv`/`.html`/`.genes.txt` to the
+  `multiqc_files` topic. The top-level workflow subscribes with
+  `channel.topic("multiqc_files")` and mixes the file paths into the MultiQC inputs — no
+  manual wiring between the annotation subworkflow and MultiQC.
+
+Commit: `feat(annotate): add SnpEff annotation and impact filtering`.
+
 <!-- sections below are filled in as stages land -->
+
 
 
 
