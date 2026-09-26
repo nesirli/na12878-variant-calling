@@ -26,6 +26,13 @@
                             "modules"
                         ]
                     },
+                    "bcftools/isec": {
+                        "branch": "master",
+                        "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
                     "bcftools/stats": {
                         "branch": "master",
                         "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
@@ -155,6 +162,13 @@
                     "snpeff/snpeff": {
                         "branch": "master",
                         "git_sha": "c565f1b27c06a1e8b726e2a646d4c822ae3b514a",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "wget": {
+                        "branch": "master",
+                        "git_sha": "8dfb9868efd0e39f27ae0fed1ed204dc8f0b2a13",
                         "installed_by": [
                             "modules"
                         ]

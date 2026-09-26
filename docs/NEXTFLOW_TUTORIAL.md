@@ -224,7 +224,31 @@ ANN_FILTER(SNPEFF_SNPEFF.out.vcf, script)     // local module
 
 Commit: `feat(annotate): add SnpEff annotation and impact filtering`.
 
+## 8. Validation against GIAB
+
+`subworkflows/local/validation.nf`:
+
+```groovy
+WGET_TRUTH_VCF(...) / WGET_TRUTH_TBI(...)          // GIAB HG001 benchmark + index
+BCFTOOLS_ANNOTATE_TRUTH(truth + chr map)           // chr1 -> 1 ...
+BCFTOOLS_INDEX(renamed truth)
+BCFTOOLS_ISEC(calls + truth)                       // -r 20 (matches the calling interval)
+VALIDATE_METRICS(isec_dir)                         // local module -> sensitivity/precision
+```
+
+- **Interval discipline.** The truth VCF spans chromosomes 1-22. Since reads are only
+  called on chr20 (`--variant_interval 20`), `bcftools isec` is restricted to the same
+  region (`ext.args = { "-r ${params.variant_interval}" }`). Without it, every truth
+  variant outside chr20 would count as a false negative.
+- **`bcftools isec` output convention.** `0000.vcf` = sample only, `0001.vcf` = truth only,
+  `0002.vcf` = shared. `VALIDATE_METRICS` counts records (ignoring header lines) and
+  derives sensitivity = shared / (shared + truth_only), precision = shared /
+  (shared + sample_only).
+
+Commit: `feat(validate): add GIAB truth-set concordance subworkflow`.
+
 <!-- sections below are filled in as stages land -->
+
 
 
 

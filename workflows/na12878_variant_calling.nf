@@ -11,6 +11,7 @@ include { ALIGN                  } from '../subworkflows/local/align'
 include { VARIANT_CALLING        } from '../subworkflows/local/variant_calling'
 include { FILTER_VARIANTS        } from '../subworkflows/local/filter_variants'
 include { ANNOTATION             } from '../subworkflows/local/annotation'
+include { VALIDATION             } from '../subworkflows/local/validation'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -90,6 +91,11 @@ workflow NA12878_VARIANT_CALLING {
     // SUBWORKFLOW: Functional annotation (SnpEff)
     //
     ANNOTATION(FILTER_VARIANTS.out.vcf)
+
+    //
+    // SUBWORKFLOW: Validate against the GIAB truth set
+    //
+    VALIDATION(FILTER_VARIANTS.out.vcf, FILTER_VARIANTS.out.vcf_idx)
 
     // Collect SnpEff reports for MultiQC
     ch_multiqc_files = ch_multiqc_files.mix(
