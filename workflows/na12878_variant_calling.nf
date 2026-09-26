@@ -4,7 +4,10 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { DOWNLOAD_READS         } from '../modules/local/download_reads'
 include { QC                     } from '../subworkflows/local/qc'
+include { PREPARE_REFERENCE      } from '../subworkflows/local/reference'
+include { ALIGN                  } from '../subworkflows/local/align'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -29,11 +32,34 @@ workflow NA12878_VARIANT_CALLING {
 
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
+
+    //
+    // Reads: download from ENA, or use FASTQ paths listed in the samplesheet
+    //
+    def ch_reads = channel.empty()
+    if (params.download_reads) {
+        DOWNLOAD_READS(ch_samplesheet.map { meta, _reads -> meta })
+        ch_reads = DOWNLOAD_READS.out.reads
+    } else {
+        ch_reads = ch_samplesheet
+    }
+
+    //
+    // SUBWORKFLOW: Prepare the reference indexes (faidx + bwa index)
+    //
+    def ch_reference = channel.of([ id: params.reference_name ?: 'GRCh38' ])
+    PREPARE_REFERENCE(ch_reference)
+
     //
     // SUBWORKFLOW: Read QC (FastQC)
     //
-    QC(ch_samplesheet)
+    QC(ch_reads)
     ch_multiqc_files = ch_multiqc_files.mix(QC.out.multiqc_files)
+
+    //
+    // SUBWORKFLOW: Read alignment (BWA-MEM + samtools)
+    //
+    ALIGN(ch_reads, PREPARE_REFERENCE.out.fasta, PREPARE_REFERENCE.out.bwa_index)
 
     //
     // Collate and save software versions

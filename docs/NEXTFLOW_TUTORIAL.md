@@ -90,5 +90,53 @@ nextflow run . -stub-run --input assets/samplesheet.csv --outdir results
 
 Commit: `feat(qc): add FastQC subworkflow`.
 
+## 4. Alignment
+
+Alignment needs a reference and its indexes first. We download GRCh38 in a **local
+module** (`modules/local/download_reference`) because no nf-core module covers the
+Ensembl FASTA + BSD-`sum` verification + Broad known-sites combination. Writing a local
+module is the same contract as an nf-core module: typed `input:`, `output:` with
+`emit:`, a container, and a `versions.yml`.
+
+`subworkflows/local/reference.nf` then uses two nf-core modules:
+
+```groovy
+SAMTOOLS_FAIDX(ch_fasta.map { meta, fasta -> [ meta, fasta, [] ] }, true)  // -> .fai (+ .sizes)
+BWA_INDEX(ch_fasta)                                                        // -> index dir
+```
+
+`subworkflows/local/align.nf` mirrors the Snakemake rules:
+
+```groovy
+BWA_MEM(ch_reads, ch_bwa_index, ch_fasta, false)   // false = do not sort inside BWA
+SAMTOOLS_SORT(BWA_MEM.out.bam, [ [:], [], [] ], '')
+SAMTOOLS_INDEX(SAMTOOLS_SORT.out.bam)
+SAMTOOLS_FLAGSTAT(SAMTOOLS_SORT.out.bam.join(SAMTOOLS_INDEX.out.index))
+```
+
+Four things are worth internalising here:
+
+- **`meta` is the join key.** `ch_reads` carries the sample `meta`; `ch_bwa_index` and
+  `ch_fasta` carry a reference `meta`. Nextflow pairs each sample with the single
+  reference entry automatically. `join` pairs the BAM with its index for `flagstat`.
+- **`ext.args` carries tool flags.** The BWA read group is injected in
+  `conf/modules.config` rather than hard-coded in the module:
+  `ext.args = { "-R '@RG\\tID:${meta.id}\\tSM:${meta.id}\\tPL:ILLUMINA\\tLB:lib1'" }`.
+- **`ext.prefix` controls output names.** `SAMTOOLS_SORT` is told to write
+  `${meta.id}.sorted.bam` so it never collides with the unsorted `BWA_MEM` output.
+- **Resource labels, not hard numbers.** Modules declare `label 'process_low'`,
+  `process_high`, etc.; `conf/base.config` maps those to cpus/memory/time. We lowered
+  the template's defaults (72/200 GB) to values that fit this 47 GB cluster, and added
+  `resourceLimits` for tests.
+
+Stub run (validates the whole DAG without running tools):
+
+```bash
+nextflow run . -stub-run -c conf/local_test.config --input assets/samplesheet.csv --outdir results
+```
+
+Commit: `feat(align): add reference prep and BWA-MEM alignment subworkflows`.
+
 <!-- sections below are filled in as stages land -->
+
 
