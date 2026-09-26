@@ -9,6 +9,7 @@ include { QC                     } from '../subworkflows/local/qc'
 include { PREPARE_REFERENCE      } from '../subworkflows/local/reference'
 include { ALIGN                  } from '../subworkflows/local/align'
 include { VARIANT_CALLING        } from '../subworkflows/local/variant_calling'
+include { FILTER_VARIANTS        } from '../subworkflows/local/filter_variants'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -71,6 +72,17 @@ workflow NA12878_VARIANT_CALLING {
         PREPARE_REFERENCE.out.fai,
         PREPARE_REFERENCE.out.dbsnp,
         PREPARE_REFERENCE.out.indels
+    )
+
+    //
+    // SUBWORKFLOW: Filter and merge variants (GATK + bcftools)
+    //
+    FILTER_VARIANTS(
+        VARIANT_CALLING.out.vcf,
+        VARIANT_CALLING.out.vcf_index,
+        PREPARE_REFERENCE.out.fasta,
+        PREPARE_REFERENCE.out.fai,
+        VARIANT_CALLING.out.dict
     )
 
     //

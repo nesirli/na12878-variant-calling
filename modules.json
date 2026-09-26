@@ -12,7 +12,28 @@
                             "modules"
                         ]
                     },
+                    "bcftools/concat": {
+                        "branch": "master",
+                        "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
                     "bcftools/index": {
+                        "branch": "master",
+                        "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "bcftools/stats": {
+                        "branch": "master",
+                        "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "bcftools/view": {
                         "branch": "master",
                         "git_sha": "feef37435aea56816adf4b3bde1fc76aac327a8d",
                         "installed_by": [
@@ -69,6 +90,20 @@
                         ]
                     },
                     "gatk4/markduplicates": {
+                        "branch": "master",
+                        "git_sha": "d5de7a949aa84689f4098c958f05733a6c3804f5",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "gatk4/selectvariants": {
+                        "branch": "master",
+                        "git_sha": "d5de7a949aa84689f4098c958f05733a6c3804f5",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "gatk4/variantfiltration": {
                         "branch": "master",
                         "git_sha": "d5de7a949aa84689f4098c958f05733a6c3804f5",
                         "installed_by": [

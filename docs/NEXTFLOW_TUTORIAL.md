@@ -172,7 +172,35 @@ Lessons this stage teaches:
 
 Commit: `feat(variant-calling): add GATK4 MarkDuplicates/BQSR/HaplotypeCaller`.
 
+## 6. Filtering and merging
+
+`subworkflows/local/filter_variants.nf`:
+
+```groovy
+GATK4_SELECTVARIANTS_SNP(...)                              // --select-type-to-include SNP
+GATK4_VARIANTFILTRATION_SNP(...)                           // QD/MQ/FS/SOR filters
+BCFTOOLS_VIEW_SNP(filtered, [], [], [])                    // -f PASS
+GATK4_SELECTVARIANTS_INDEL(...) / GATK4_VARIANTFILTRATION_INDEL(...)
+BCFTOOLS_CONCAT(...)                                        // -a -Oz, merge SNP + INDEL
+BCFTOOLS_STATS(...)
+```
+
+Notes:
+
+- **Empty tuple inputs must have the right arity.** `VariantFiltration` declares
+  `tuple val(meta), path(gzi)` for the optional `.gzi`; passing `[]` fails with
+  `Input tuple does not match tuple declaration`. Pass `[ [], [] ]` instead. The same
+  applies to `bcftools/stats`' optional `[meta, file]` inputs.
+- **`--write-index` keeps indexes tied to their VCFs.** `bcftools view` and `concat` are
+  configured with `--write-index=tbi`, so each emitted VCF always arrives with its `.tbi`
+  in the same tuple — no dangling index between processes.
+- **One stats file replaces three text files.** `bcftools stats` reports SNP/indel counts
+  and the Ts/Tv ratio that the Snakemake rules wrote separately.
+
+Commit: `feat(filter): add GATK SelectVariants/VariantFiltration + bcftools merge`.
+
 <!-- sections below are filled in as stages land -->
+
 
 
 
