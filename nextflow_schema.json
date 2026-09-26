@@ -10,7 +10,10 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": [
+                "input",
+                "outdir"
+            ],
             "properties": {
                 "input": {
                     "type": "string",
@@ -148,7 +151,14 @@
                     "description": "Method used to save pipeline results to output directory.",
                     "help_text": "The Nextflow `publishDir` option specifies which intermediate files should be saved to the output directory. This option tells the pipeline what method should be used to move these files. See [Nextflow docs](https://www.nextflow.io/docs/latest/process.html#publishdir) for details.",
                     "fa_icon": "fas fa-copy",
-                    "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
+                    "enum": [
+                        "symlink",
+                        "rellink",
+                        "link",
+                        "copy",
+                        "copyNoFollow",
+                        "move"
+                    ],
                     "hidden": true
                 },
                 "email_on_fail": {
@@ -218,7 +228,10 @@
                     "hidden": true
                 },
                 "help": {
-                    "type": ["boolean", "string"],
+                    "type": [
+                        "boolean",
+                        "string"
+                    ],
                     "description": "Display the help message."
                 },
                 "help_full": {
@@ -230,11 +243,97 @@
                     "description": "Display hidden parameters in the help message (only works when --help or --help_full are provided)."
                 }
             }
+        },
+        "pipeline_options": {
+            "title": "Pipeline options",
+            "type": "object",
+            "fa_icon": "fas fa-dna",
+            "description": "Input, reference, analysis, annotation and validation options specific to this pipeline.",
+            "default": "",
+            "properties": {
+                "download_reads": {
+                    "type": "boolean",
+                    "description": "Download reads from ENA instead of using FASTQ paths in the samplesheet",
+                    "default": true
+                },
+                "ena_url": {
+                    "type": "string",
+                    "description": "Base URL of the ENA FASTQ mirror for the sample (files are <sample>_1.fastq.gz, <sample>_2.fastq.gz, <sample>.fastq.gz)"
+                },
+                "ena_md5_r1": {
+                    "type": "string",
+                    "description": "md5 of read 1 (optional; empty disables the check)"
+                },
+                "ena_md5_r2": {
+                    "type": "string",
+                    "description": "md5 of read 2 (optional; empty disables the check)"
+                },
+                "ena_md5_orphan": {
+                    "type": "string",
+                    "description": "md5 of the orphan FASTQ (optional; empty disables the check)"
+                },
+                "download_reference": {
+                    "type": "boolean",
+                    "description": "Download the GRCh38 reference and known sites",
+                    "default": true
+                },
+                "reference_name": {
+                    "type": "string",
+                    "description": "Reference FASTA basename (without extension)",
+                    "default": "Homo_sapiens.GRCh38.dna.primary_assembly"
+                },
+                "fasta_url": {
+                    "type": "string",
+                    "description": "URL of the gzipped reference FASTA"
+                },
+                "checksums_url": {
+                    "type": "string",
+                    "description": "URL of the Ensembl CHECKSUMS manifest used to verify the reference"
+                },
+                "dbsnp_url": {
+                    "type": "string",
+                    "description": "URL of the Broad dbsnp138 VCF"
+                },
+                "dbsnp_idx_url": {
+                    "type": "string",
+                    "description": "URL of the Broad dbsnp138 VCF .idx"
+                },
+                "indels_url": {
+                    "type": "string",
+                    "description": "URL of the Broad known-indels VCF"
+                },
+                "indels_idx_url": {
+                    "type": "string",
+                    "description": "URL of the Broad known-indels VCF .tbi"
+                },
+                "variant_interval": {
+                    "type": "string",
+                    "description": "Region to call and validate (empty = whole genome)",
+                    "default": "20"
+                },
+                "snpeff_db": {
+                    "type": "string",
+                    "description": "SnpEff database name",
+                    "default": "GRCh38.105"
+                },
+                "truth_url": {
+                    "type": "string",
+                    "description": "Base URL of the GIAB NA12878 (HG001) benchmark"
+                },
+                "truth_filename": {
+                    "type": "string",
+                    "description": "GIAB truth-set VCF filename",
+                    "default": "HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
+                }
+            }
         }
     },
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/pipeline_options"
         },
         {
             "$ref": "#/$defs/reference_genome_options"
