@@ -247,7 +247,43 @@ VALIDATE_METRICS(isec_dir)                         // local module -> sensitivit
 
 Commit: `feat(validate): add GIAB truth-set concordance subworkflow`.
 
+## 9. Execution profiles and resources
+
+`nextflow.config` defines the container-engine and executor profiles. The relevant ones
+for this project:
+
+| Profile | Purpose |
+|---|---|
+| `apptainer` | Rootless containers on the HPC node; cache in `/home/nasir/work/apptainer-cache` |
+| `slurm` | `process.executor = 'slurm'`, queue `compute`, `errorStrategy='retry'` |
+| `docker` | Local workstation runs (template default) |
+| `seqera` | `slurm` + `apptainer` combined, for the Seqera Cloud compute environment |
+
+```bash
+# on the cluster
+nextflow run . -profile slurm,apptainer --input assets/samplesheet.csv --outdir results
+```
+
+Details that matter:
+
+- **Cache and tmp live in the work area.** Containers are large; pointing
+  `apptainer.cacheDir` at `/home/nasir/work` (not `$HOME`) avoids filling the home
+  directory. `apptainer.runOptions = '--bind /home/nasir/work'` makes the work tree visible
+  inside containers.
+- **Resources come from labels.** `conf/base.config` maps `process_single/low/medium/high`
+  to cpus/memory/time sized for a 47 GB node. Modules keep their nf-core labels, so raising
+  a limit is a one-line change in one file.
+- **`errorStrategy` must be static.** Nextflow >= 25.10 rejects dynamic `errorStrategy`
+  closures (the template ships one); the base config uses `'finish'` and the Slurm profiles
+  opt into `'retry'`.
+- **Fast iteration.** `--downsample_reads N` inserts an `seqtk/sample` step (an nf-core
+  module) between the download and QC/alignment, so you can validate the whole DAG on a
+  subset before a full-depth run.
+
+Commit: `feat(config): apptainer/slurm/seqera profiles and optional downsampling`.
+
 <!-- sections below are filled in as stages land -->
+
 
 
 

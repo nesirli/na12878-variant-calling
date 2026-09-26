@@ -256,6 +256,12 @@
                     "description": "Download reads from ENA instead of using FASTQ paths in the samplesheet",
                     "default": true
                 },
+                "downsample_reads": {
+                    "type": "string",
+                    "description": "If > 0, randomly sample this many reads per FASTQ with seqtk/sample before analysis (fast iteration; 0 disables).",
+                    "pattern": "^[0-9]+$",
+                    "default": "0"
+                },
                 "ena_url": {
                     "type": "string",
                     "description": "Base URL of the ENA FASTQ mirror for the sample (files are <sample>_1.fastq.gz, <sample>_2.fastq.gz, <sample>.fastq.gz)"

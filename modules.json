@@ -152,6 +152,13 @@
                             "modules"
                         ]
                     },
+                    "seqtk/sample": {
+                        "branch": "master",
+                        "git_sha": "d672aca9cdef89ee649b340c08877ae40a19d5c0",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
                     "snpeff/download": {
                         "branch": "master",
                         "git_sha": "c565f1b27c06a1e8b726e2a646d4c822ae3b514a",

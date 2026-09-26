@@ -5,6 +5,7 @@
 */
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { DOWNLOAD_READS         } from '../modules/local/download_reads'
+include { SEQTK_SAMPLE           } from '../modules/nf-core/seqtk/sample'
 include { QC                     } from '../subworkflows/local/qc'
 include { PREPARE_REFERENCE      } from '../subworkflows/local/reference'
 include { ALIGN                  } from '../subworkflows/local/align'
@@ -49,6 +50,16 @@ workflow NA12878_VARIANT_CALLING {
     }
 
     //
+    // Optional downsampling for fast iteration (params.downsample_reads > 0)
+    //
+    def downsample_reads = params.downsample_reads ? params.downsample_reads.toInteger() : 0
+    def ch_analysis_reads = ch_reads
+    if (downsample_reads > 0) {
+        SEQTK_SAMPLE(ch_reads.map { meta, reads -> [ meta, reads, downsample_reads ] })
+        ch_analysis_reads = SEQTK_SAMPLE.out.reads
+    }
+
+    //
     // SUBWORKFLOW: Prepare the reference indexes (faidx + bwa index)
     //
     def ch_reference = channel.of([ id: params.reference_name ?: 'GRCh38' ])
@@ -57,13 +68,13 @@ workflow NA12878_VARIANT_CALLING {
     //
     // SUBWORKFLOW: Read QC (FastQC)
     //
-    QC(ch_reads)
+    QC(ch_analysis_reads)
     ch_multiqc_files = ch_multiqc_files.mix(QC.out.multiqc_files)
 
     //
     // SUBWORKFLOW: Read alignment (BWA-MEM + samtools)
     //
-    ALIGN(ch_reads, PREPARE_REFERENCE.out.fasta, PREPARE_REFERENCE.out.bwa_index)
+    ALIGN(ch_analysis_reads, PREPARE_REFERENCE.out.fasta, PREPARE_REFERENCE.out.bwa_index)
 
     //
     // SUBWORKFLOW: GATK variant calling (MarkDuplicates, BQSR, HaplotypeCaller)
