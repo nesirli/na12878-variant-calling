@@ -1,3 +1,11 @@
+# Nextflow
+.nextflow*
+work/
+testing/
+testing*
+null/
+.lineage/
+
 # Snakemake
 .snakemake/
 snakemake-*.log
@@ -13,10 +21,8 @@ data/raw/*
 data/reference/*
 data/trim/
 
-# Results
+# Results / logs
 results/
-
-# Logs
 logs/
 
 # Conda / environments
