@@ -9,7 +9,8 @@ process DOWNLOAD_REFERENCE {
 
     output:
     tuple val(meta), path("${params.reference_name}.fa"), emit: fasta
-    tuple val(meta), path("known_sites/*.vcf"), path("known_sites/*.vcf.idx"), path("known_sites/*.vcf.gz"), path("known_sites/*.vcf.gz.tbi"), emit: known_sites, optional: true
+    tuple val(meta), path("known_sites/Homo_sapiens_assembly38.dbsnp138.vcf"), path("known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.idx"), emit: dbsnp
+    tuple val(meta), path("known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"), path("known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"), emit: indels
     path "reference_integrity.txt", emit: integrity
     path "versions.yml"           , emit: versions
 

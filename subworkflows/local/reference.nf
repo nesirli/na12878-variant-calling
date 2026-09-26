@@ -2,11 +2,10 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     SUBWORKFLOW: Reference preparation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Obtains the GRCh38 primary assembly and prepares the indexes the alignment
-    and GATK stages need:
-      - samtools faidx  -> .fai
+    Obtains the GRCh38 primary assembly, the BQSR known sites, and prepares the
+    indexes the alignment and GATK stages need:
+      - samtools faidx  -> .fai (+ .sizes)
       - bwa index       -> .amb/.ann/.bwt/.pac/.sa
-      - (GATK .dict is added in the variant-calling subworkflow)
 ----------------------------------------------------------------------------------------
 */
 
@@ -20,18 +19,9 @@ workflow PREPARE_REFERENCE {
     ch_reference                // channel: [ meta ]
 
     main:
-    def ch_fasta       = channel.empty()
-    def ch_known_sites = channel.empty()
+    DOWNLOAD_REFERENCE(ch_reference)
 
-    if (params.download_reference) {
-        DOWNLOAD_REFERENCE(ch_reference)
-        ch_fasta       = DOWNLOAD_REFERENCE.out.fasta
-        ch_known_sites = DOWNLOAD_REFERENCE.out.known_sites
-    } else {
-        ch_fasta = ch_reference.map { meta ->
-            [ meta, file(params.fasta, checkIfExists: true) ]
-        }
-    }
+    def ch_fasta = DOWNLOAD_REFERENCE.out.fasta
 
     //
     // MODULE: Create FASTA index
@@ -44,9 +34,11 @@ workflow PREPARE_REFERENCE {
     BWA_INDEX(ch_fasta)
 
     emit:
-    fasta       = ch_fasta                                  // channel: [ meta, fasta ]
-    fai         = SAMTOOLS_FAIDX.out.fai                    // channel: [ meta, fai ]
-    sizes       = SAMTOOLS_FAIDX.out.sizes                  // channel: [ meta, sizes ]
-    bwa_index   = BWA_INDEX.out.index                       // channel: [ meta, index_dir ]
-    known_sites = ch_known_sites                            // channel: [ meta, [ vcf... ] ]
+    fasta      = ch_fasta                            // channel: [ meta, fasta ]
+    fai        = SAMTOOLS_FAIDX.out.fai              // channel: [ meta, fai ]
+    sizes      = SAMTOOLS_FAIDX.out.sizes            // channel: [ meta, sizes ]
+    bwa_index  = BWA_INDEX.out.index                 // channel: [ meta, index_dir ]
+    dbsnp      = DOWNLOAD_REFERENCE.out.dbsnp        // channel: [ meta, dbsnp.vcf, dbsnp.vcf.idx ]
+    indels     = DOWNLOAD_REFERENCE.out.indels       // channel: [ meta, known_indels.vcf.gz, known_indels.vcf.gz.tbi ]
+    integrity  = DOWNLOAD_REFERENCE.out.integrity    // path: reference_integrity.txt
 }

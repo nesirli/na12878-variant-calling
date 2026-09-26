@@ -8,6 +8,7 @@ include { DOWNLOAD_READS         } from '../modules/local/download_reads'
 include { QC                     } from '../subworkflows/local/qc'
 include { PREPARE_REFERENCE      } from '../subworkflows/local/reference'
 include { ALIGN                  } from '../subworkflows/local/align'
+include { VARIANT_CALLING        } from '../subworkflows/local/variant_calling'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -60,6 +61,17 @@ workflow NA12878_VARIANT_CALLING {
     // SUBWORKFLOW: Read alignment (BWA-MEM + samtools)
     //
     ALIGN(ch_reads, PREPARE_REFERENCE.out.fasta, PREPARE_REFERENCE.out.bwa_index)
+
+    //
+    // SUBWORKFLOW: GATK variant calling (MarkDuplicates, BQSR, HaplotypeCaller)
+    //
+    VARIANT_CALLING(
+        ALIGN.out.bam,
+        PREPARE_REFERENCE.out.fasta,
+        PREPARE_REFERENCE.out.fai,
+        PREPARE_REFERENCE.out.dbsnp,
+        PREPARE_REFERENCE.out.indels
+    )
 
     //
     // Collate and save software versions

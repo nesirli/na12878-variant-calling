@@ -137,6 +137,42 @@ nextflow run . -stub-run -c conf/local_test.config --input assets/samplesheet.cs
 
 Commit: `feat(align): add reference prep and BWA-MEM alignment subworkflows`.
 
+## 5. GATK variant calling
+
+`subworkflows/local/variant_calling.nf` chains the GATK4 modules the same way the
+Snakemake `04_analysis.smk` rules do:
+
+```groovy
+GATK4_CREATESEQUENCEDICTIONARY(ch_fasta)                 // -> .dict
+GATK4_MARKDUPLICATES(ch_bam, fasta, fai)                 // -> dedup.bam/.bai/.metrics
+GATK4_BASERECALIBRATOR(dedup + index, fasta, fai, dict, known_sites, known_tbi)
+GATK4_APPLYBQSR(dedup + index + table, fasta + fai + dict, 'bam')
+GATK4_HAPLOTYPECALLER(recal + index, fasta, fai, dict, dbsnp, dbsnp_tbi)
+```
+
+Lessons this stage teaches:
+
+- **Aliased includes for repeated tools.** Nextflow refuses to use the same process
+  twice in one scope (`Process 'BCFTOOLS_ANNOTATE' has been already used`). Rename the
+  known-sites with two aliases:
+  `include { BCFTOOLS_ANNOTATE as BCFTOOLS_ANNOTATE_DBSNP }` and `..._INDELS`. Config
+  selectors then use a regex: `withName: 'BCFTOOLS_ANNOTATE.*'`.
+- **Contig harmonisation.** The Broad known-sites VCFs use `chr20`, the Ensembl reference
+  uses `20`. `assets/chr_rename.txt` is passed to `bcftools/annotate --rename-chrs`; the
+  module exposes this as the `rename_chrs` input slot.
+- **Avoiding a module quirk.** `bcftools/annotate` runs `bcftools index <input>` when its
+  `index` input is empty. We pass the existing `.idx`/`.tbi` so that pre-command is
+  skipped, then index the *output* with a separate `BCFTOOLS_INDEX_*` call.
+- **`ext.args` is where pipeline policy lives.** All the GATK flags are in
+  `conf/modules.config`:
+  `GATK4_MARKDUPLICATES` gets `--REMOVE_DUPLICATES false --CREATE_INDEX true`;
+  `GATK4_HAPLOTYPECALLER` gets `-L ${params.variant_interval}` (chr20 by default).
+- **Multi-file inputs are lists.** `BaseRecalibrator` takes a list of known sites, so the
+  two renamed VCFs are combined with `combine()` into `[ [id:'known_sites'], [v1,v2] ]`.
+
+Commit: `feat(variant-calling): add GATK4 MarkDuplicates/BQSR/HaplotypeCaller`.
+
 <!-- sections below are filled in as stages land -->
+
 
 
